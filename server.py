@@ -1,6 +1,5 @@
 import os
 import logging
-import re
 import aiogram.utils.markdown as md
 from time import sleep
 from typing import AnyStr
@@ -21,8 +20,8 @@ BOT_API_TOKEN: AnyStr = os.getenv('7049229917:AAG7o_muXfApHrdiaMwI8-qMCeHHkfooZs
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token='7049229917:AAG7o_muXfApHrdiaMwI8-qMCeHHkfooZs')
 dp = Dispatcher(bot, storage=MemoryStorage())
-ACCESS_ID: AnyStr = os.getenv('MY_TELEGRAM_ID') # заглушка доступа
-dp.middleware.setup(AccessMiddleware(ACCESS_ID)) # заглушка доступа
+#ACCESS_ID: AnyStr = os.getenv('MY_TELEGRAM_ID') # заглушка доступа
+#dp.middleware.setup(AccessMiddleware(ACCESS_ID)) # заглушка доступа
 MAIN_MENU = MainMenu().create_keyboard()
 
 
@@ -56,9 +55,9 @@ async def stop_handler(message: types.Message, state: FSMContext):
     if current_state is None:
         return
 
-    logging.info('Stopping state %r', current_state)
+    logging.info('Остановлено:', current_state)
     await state.finish()
-    await message.reply('Stopped previous action.', reply_markup=MAIN_MENU)
+    await message.reply('Остановка предыдущего действия.', reply_markup=MAIN_MENU)
 
 
 class IncomeForm(StatesGroup):
@@ -87,10 +86,9 @@ async def income(message: types.Message):
     )
 
 
-#  Getting income categorie
 @dp.message_handler(state=IncomeForm.categorie)
 async def process_income_categorie(message: types.Message, state: FSMContext):
-    """Получения дохода по категориям"""
+    """Получение дохода по категориям"""
     async with state.proxy() as data:
         data['categorie'] = message.text.split('/')[1]
 
@@ -98,23 +96,22 @@ async def process_income_categorie(message: types.Message, state: FSMContext):
     await message.reply('Введите сумму дохода')
 
 
-#  Check amount not digit
 @dp.message_handler(
     lambda message: not message.text.isdigit(),
     state=IncomeForm.amount
 )
 
 async def invalid_income_amount(message: types.Message):
+    """По результатам проверки сообщение (сумма дохода) не является числом"""
     await message.reply('Сумма должна быть числом\nВведите сумму дохода')
 
 
-#  Check amount is digit
 @dp.message_handler(
     lambda message: message.text.isdigit(),
     state=IncomeForm.amount
 )
 async def process_income_amount(message: types.Message, state: FSMContext):
-    """Получить сумму дохода, если сообщение верное (цифра)"""
+    """Получить сумму дохода, если сообщение верное (число)"""
     async with state.proxy() as data:
         data['amount'] = int(message.text)
         await message.reply(f'Новый доход {message.text}₽ добавлен')
@@ -129,7 +126,6 @@ async def process_income_amount(message: types.Message, state: FSMContext):
     )
 
 
-#  Set state for Expense Command
 @dp.message_handler(commands='Расходы')
 async def income(message: types.Message):
     """Отобразить меню категорий расходов"""
@@ -166,12 +162,13 @@ async def process_expense_subcategorie(
     await message.reply('Введите сумму расхода')
 
 
-#  Check amount not digit
+
 @dp.message_handler(
     lambda message: not message.text.isdigit(),
     state=ExpenseForm.amount
 )
 async def invalid_expense_amount(message: types.Message):
+    """По результатам проверки сообщение (сумма расходов) не является числом"""
     await message.reply('Сумма должна быть числом\nВведите сумму расхода')
 
 
@@ -181,6 +178,7 @@ async def invalid_expense_amount(message: types.Message):
     state=ExpenseForm.amount
 )
 async def process_expense_amount(message: types.Message, state: FSMContext):
+    """Получить сумму расходов, если сообщение верное (число)"""
     async with state.proxy() as data:
         data['amount'] = int(message.text)
         await message.reply(f'Новый расход {message.text}₽ добавлен')
@@ -260,6 +258,7 @@ async def send_graph_stat(message: types.Message):
 
 @dp.message_handler(commands=['УдалитьРасходы', 'УдалитьДоходы'])
 async def set_delete_state(message: types.Message, state: FSMContext):
+    """Вывод меню для удаления доходов и расходов"""
     text = message.text.split('/')[1]
     if text == 'УдалитьРасходы':
         table_name = 'expenses'
@@ -276,6 +275,7 @@ async def set_delete_state(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=DeleteForm.operation)
 async def process_delete_operation(message: types.Message, state: FSMContext):
+    """Удаление расходов и доходов"""
     operation = message.text.split('/')[1]
     async with state.proxy() as data:
         data['operation'] = operation
@@ -290,6 +290,7 @@ async def process_delete_operation(message: types.Message, state: FSMContext):
 
 @dp.errors_handler()
 async def handle_all_errors(update, error):
+    """Перехват возникающих ошибок"""
     chat_id = update.message.chat.id
     await bot.send_message(
         chat_id,
